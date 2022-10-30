@@ -1,3 +1,4 @@
-import Corbetts
+from Corbetts import Corbetts
 
-Corbetts.get_corbetts()
+Corbetts_Obj = Corbetts()
+Corbetts_Obj.get_corbetts()
