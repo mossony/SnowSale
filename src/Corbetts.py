@@ -38,7 +38,7 @@ class Corbetts:
         response.html.render(timeout=15)
         html = response.html.html
         soup = BeautifulSoup(html, "html.parser")
-        item_remain = int(soup.find('a', {'href': "https://www.corbetts.com/categories/sale.html#/filter:ss_on_sale:1:1"}).find('div', {'class':'ng-binding'}).text[1:-1])
+        item_remain = int(soup.find('a', {'href': "https://www.corbetts.com/categories/sale.html#/filter:ss_on_sale:1:1"}).find('div', {'class': 'ng-binding'}).text[1:-1])
 
         page = 1
         while page < item_remain // 48:  # 48 items each page
@@ -62,7 +62,7 @@ class Corbetts:
                 if original_price_raw:
                     original_price = original_price_raw.group(1).replace(',', '')
                 sale_price = re.search(self.find_sale_price, item).group(1).replace(',', '')
-                pic_link = re.search(self.find_product_name, name_a).group(2)
+                pic_link = re.search(self.find_pic_link, item).group(2)
                 if original_price != '0':
                     discount_rate = str("{:.2f}".format(float(sale_price) / float(original_price)))
                 else:
