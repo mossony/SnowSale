@@ -1,25 +1,15 @@
 import os
-import re
 import sqlite3
 from requests_html import HTMLSession
 from datetime import datetime
 from bs4 import BeautifulSoup
-import math
 
 
-class Rudeboys:
-    def __init__(self):
-        self.find_product_id = re.compile(r'data-product-id="(\d*)"')
-        # self.find_product_name = re.compile(r'<a(.*?)>(.*?)</a>')
-        self.find_pic_link = re.compile(r'<img(.*?)src="(.*?)"')
-        self.find_original_price = re.compile(
-            r'<span class="product-price__item product-price__compare theme-money">\$(.*?)<')
-        self.find_sale_price = re.compile(
-            r'<span(.*?)product-price__amount(.*?)\$(.*?)<')
-        self.find_product_link = re.compile(r'<a(.*?)(product-link)?href="(.*?)"(product-link)?')
 
-    def get_rudeboys(self):
-        burl = 'https://rudeboys.com/collections/sale-bindings?page='
+class Comor:
+
+    def get_comor(self):
+        burl = 'https://comorsports.com/collections/sale?page={}&product_type=Snowboards,Snowboard+Boots,Snowboard+Bindings,Snow+Pants+%26+Bibs,Skis,Ski+Poles,Ski+Boots,Ski+Bindings'
         datalist = self.get_data(burl)
         if not os.path.exists('.\\data\\'):
             os.makedirs('.\\data\\')
@@ -36,19 +26,19 @@ class Rudeboys:
         session = HTMLSession()
         # sometime response might be None, added try
         try:
-            response = session.get(burl + '1')
+            response = session.get(burl.format(1))
         except Exception as e:
-            response = session.get(burl + '1')
+            response = session.get(burl.format(1))
         response.html.render(timeout=15)
         html = response.html.html
         soup = BeautifulSoup(html, "html.parser")
-        item_remain = int(soup.find('div', {'class': "utility-bar__centre"}).text[:2])
+        total_page = int(soup.find_all('span', {'class': "pagination__number"})[-1].find('a').text)
 
         page = 0
-        while page < math.ceil(item_remain / 24):  # 24 items each page
+        while page < total_page:
             page += 1
             print('Getting data from page', page)
-            url = burl + str(page)
+            url = burl.format(page)
             session = HTMLSession()
             try:
                 response = session.get(url)
@@ -58,27 +48,27 @@ class Rudeboys:
             html = response.html.html
             soup = BeautifulSoup(html, "html.parser")
 
-            for item in soup.find('div', {'class': 'filters-adjacent collection-listing'}).find_all('div', {
-                'class': ['product-block cc-animate-init -in cc-animate-complete', 'product-block cc-animate-init']}):
-                name_div = item.find_all('div', {'class': 'product-block__title'})[0]
-                item = str(item)
-                if 'Sold Out' in item:
-                    continue
-                product_id = re.search(self.find_product_id, item).group(1)
-                product_name = name_div.text
+            for item in soup.find_all('div', {'class': 'product-block'}):
+                product_name = item.find_all('div', {'class': 'product-block__title'})[0].text
+                sale_price = item.find_all('div', {'class': 'product-price'})[0].find_all('span', {'class': ['money', 'product-price__item product-price__amount theme-money']})[0].text[1:].replace(',', '')
                 original_price = '0'
-                original_price_raw = re.search(self.find_original_price, item)
+                original_price_raw = item.find_all('span', {'class': 'product-price__item product-price__compare theme-money'})
                 if original_price_raw:
-                    original_price = original_price_raw.group(1).replace(',', '')
-                sale_price = re.search(self.find_sale_price, item).group(3).replace(',', '')
-                pic_link = re.search(self.find_pic_link, item).group(2)
-                pic_link = pic_link.replace(f'{{width}}x', '1024x1024')
+                    original_price = original_price_raw[0].text[1:].replace(',', '')
                 if original_price != '0':
                     discount_rate = str("{:.2f}".format(float(sale_price) / float(original_price)))
                 else:
                     discount_rate = '0'
-                product_link = re.search(self.find_product_link, item).group(3)
-                product_link = 'https://rudeboys.com/' + product_link
+
+                product_id = item['data-product-id']
+                product_link = 'https://comorsports.com/' + item.find_all('a', {'class': 'product-link'})[0]['href']
+
+                pic_img = item.find_all('img')[0]
+
+                pic_link = pic_img['data-src'].replace(f'{{width}}x', '1024x1024')
+                if '180w' in pic_link:
+                    pic_link = pic_link[:pic_link.index('180w')]
+
                 datalist.append(
                     [product_id, product_name, original_price, sale_price, discount_rate, pic_link, product_link])
         return datalist
@@ -92,7 +82,7 @@ class Rudeboys:
             for index in range(len(data)):
                 data[index] = '"' + data[index] + '"'
             sql = '''
-            insert into sale_products (
+            insert or ignore into sale_products (
                 product_id, product_name, original_price, sale_price, discount_rate, pic_link, product_link
             )
             values (%s)''' % ",".join(data)
